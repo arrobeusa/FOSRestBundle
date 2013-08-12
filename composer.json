@@ -17,7 +17,8 @@
     ],
     "require": {
         "php":                            ">=5.3.2",
-        "symfony/http-foundation":        ">=2.0,<2.3-dev"
+        "symfony/http-foundation":        ">=2.0,<2.3-dev",
+        "willdurand/negotiation": "@stable"
     },
     "autoload": {
         "psr-0": { "FOS\\Rest": "" }

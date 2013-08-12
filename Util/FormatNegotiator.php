@@ -14,8 +14,16 @@ namespace FOS\Rest\Util;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\AcceptHeader;
 
+use Negotiation\FormatNegotiator as BaseFormatNegotiator;
+
+
 class FormatNegotiator implements FormatNegotiatorInterface
 {
+    public function __construct()
+    {
+        $this->formatNegotiator = new BaseFormatNegotiator();
+    }
+
     /**
      * Detect the request format based on the priorities and the Accept header
      *
@@ -29,32 +37,55 @@ class FormatNegotiator implements FormatNegotiatorInterface
      */
     public function getBestFormat(Request $request, array $priorities, $preferExtension = false)
     {
-        // BC - Maintain this while 2.0 and 2.1 dont reach their end of life
-        // Note: Request::splitHttpAcceptHeader is deprecated since version 2.2, to be removed in 2.3.
-        if (class_exists('Symfony\Component\HttpFoundation\AcceptHeader')) {
-            $mimetypes = array();
-            foreach (AcceptHeader::fromString($request->headers->get('Accept'))->all() as $item) {
-                $mimetypes[$item->getValue()] = $item->getQuality();
+        $acceptHeader = $request->headers->get('Accept');
+
+        if ($preferExtension) {
+            $extension = $request->get('_format');
+            if (null !== $extension && $request->getMimeType($extension)) {
+                if ($acceptHeader) {
+                    $acceptHeader.= ',';
+                }
+
+                if (is_bool($preferExtension)) {
+                    $preferExtension = '2.0';
+                }
+
+                $acceptHeader.= $request->getMimeType($extension).'; q='.$preferExtension;
             }
-        } else {
-            $mimetypes = $request->splitHttpAcceptHeader($request->headers->get('Accept'));
         }
 
-        $extension = $request->get('_format');
-        if (null !== $extension && $request->getMimeType($extension)) {
-            $mimetypes[$request->getMimeType($extension)] = $preferExtension
-                ? reset($mimetypes)+1
-                : end($mimetypes)-1;
-            arsort($mimetypes);
-        }
-
-        if (empty($mimetypes)) {
-            return null;
-        }
-
-        $catchAllEnabled = in_array('*/*', $priorities);
-        return $this->getFormatByPriorities($request, $mimetypes, $priorities, $catchAllEnabled);
+        return $this->formatNegotiator->getBestFormat($acceptHeader, $priorities);
     }
+
+
+//    public function getBestFormat(Request $request, array $priorities, $preferExtension = false)
+//    {
+//        // BC - Maintain this while 2.0 and 2.1 dont reach their end of life
+//        // Note: Request::splitHttpAcceptHeader is deprecated since version 2.2, to be removed in 2.3.
+//        if (class_exists('Symfony\Component\HttpFoundation\AcceptHeader')) {
+//            $mimetypes = array();
+//            foreach (AcceptHeader::fromString($request->headers->get('Accept'))->all() as $item) {
+//                $mimetypes[$item->getValue()] = $item->getQuality();
+//            }
+//        } else {
+//            $mimetypes = $request->splitHttpAcceptHeader($request->headers->get('Accept'));
+//        }
+//
+//        $extension = $request->get('_format');
+//        if (null !== $extension && $request->getMimeType($extension)) {
+//            $mimetypes[$request->getMimeType($extension)] = $preferExtension
+//                ? reset($mimetypes)+1
+//                : end($mimetypes)-1;
+//            arsort($mimetypes);
+//        }
+//
+//        if (empty($mimetypes)) {
+//            return null;
+//        }
+//
+//        $catchAllEnabled = in_array('*/*', $priorities);
+//        return $this->getFormatByPriorities($request, $mimetypes, $priorities, $catchAllEnabled);
+//    }
 
     /**
      * Get the format applying the supplied priorities to the mime types
